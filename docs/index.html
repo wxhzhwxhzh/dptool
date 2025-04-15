@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrissionPage工具库</title>
+    <style>
+        /* 全局样式 */
+        :root {
+            --primary-bg: #f8f9fa;
+            --border-color: #dee2e6;
+            --text-color: #495057;
+            --nav-width: 200px;
+            --content-padding: 20px;
+            --border-radius: 5px;
+            --link-hover: #007bff;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+            color: var(--text-color);
+            background-color: #ffffff;
+            line-height: 1.6;
+        }
+
+        /* 左侧导航栏样式 */
+        .nav {
+            width: var(--nav-width);
+            background-color: var(--primary-bg);
+            padding: var(--content-padding);
+            border-right: 1px solid var(--border-color);
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .nav h3 {
+            color: #343a40;
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav ul li {
+            margin-bottom: 12px;
+            transition: transform 0.2s ease;
+        }
+
+        .nav ul li:hover {
+            transform: translateX(5px);
+        }
+
+        .nav ul li a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: 500;
+            display: block;
+            padding: 6px 10px;
+            border-radius: var(--border-radius);
+            transition: all 0.3s ease;
+        }
+
+        .nav ul li a:hover {
+            color: var(--link-hover);
+            background-color: rgba(0, 123, 255, 0.1);
+        }
+        .onFoucus {
+            color: var(--link-hover);
+            background-color: rgba(0, 123, 255, 0.1);
+        }
+
+        /* 右侧内容区域样式 */
+        .content {
+            padding: var(--content-padding);
+            flex: 1;
+            background-color: #ffffff;
+        }
+
+        /* 代码块样式 */
+        pre {
+            background-color: var(--primary-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            overflow: auto;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* iframe样式 */
+        iframe {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        iframe:hover {
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body>
+    <div class="nav">
+        <h3>DrissionPage工具库</h3>
+        <ul>
+            <li><a href="https://wxhzhwxhzh.github.io/dpcode" data-target="dpcode">代码启动</a></li>
+            <li><a href="https://wxhzhwxhzh.github.io/saossion_code_helper_online/hook/" data-target="hook">逆向hook</a></li>
+            <!-- <li><a href="./fetch.html" data-target="fetch">Fetch工具</a></li>       -->
+            <li><a href="https://curlconverter.com/" data-target="curlconvert">CurlCovert</a></li>      
+            <!-- <li><a href="https://www.drissionpage.cn/browser_control/intro" data-target="docs">官方文档</a></li> -->
+            <li><a href="https://wxhzhwxhzh.github.io/sao/" data-target="saosite">骚神官网</a></li>       
+            <li><a href="https://wxhzhwxhzh.github.io/hookbox/" data-target="hookbox">hookbox</a></li>      
+            <!-- <li><a href="https://jsoncrack.com/editor" data-target="json">JSON可视化</a></li>       -->
+            <li><a href="https://ctool.dev/tool.html#/tool/json?category=conversion" data-target="ctool">CTool</a></li>      
+            <li><a href="https://spidertools.cn/#/" data-target="spider">爬虫工具库</a></li>      
+            <li><a href="https://wxhzhwxhzh.github.io/vue-site/" data-target="other">其他</a></li>      
+        </ul>
+    </div>
+    <!-- 右侧内容区域 -->
+    <div class="content" id="iframe-container">
+        <div>
+            <div id="loading">加载中...</div>
+        </div>
+        <!-- 这里会动态添加iframe -->
+    </div>
+    
+    
+    <script>
+    $(document).ready(function () {
+        // 存储所有iframe的缓存
+        const iframeCache = {};
+        let currentIframe = null;
+        
+        // 初始化第一个iframe
+        const firstLink = $('.nav ul li a').first();
+        const firstHref = firstLink.attr('href');
+        const firstTarget = firstLink.data('target');
+        
+        // 创建并显示第一个iframe
+        const iframe = $('<iframe>', {
+            id: 'iframe-' + firstTarget,
+            src: firstHref,
+            title: firstLink.text(),
+            loading: 'eager',
+            style: 'width: 100%; height: 95vh;',
+            onload: `$('#loading').text("✔️")`,
+            allow:"clipboard-read; clipboard-write"
+
+        });
+        
+        $('#iframe-container').append(iframe);
+        iframeCache[firstTarget] = iframe;
+        currentIframe = firstTarget;
+        firstLink.addClass('onFoucus');
+        
+        // 点击事件处理
+        $('.nav ul li a').click(function (e) {
+            e.preventDefault();
+            
+            const target = $(this).data('target');
+            const href = $(this).attr('href');
+            
+            // 如果点击的是当前活动的链接，不做任何操作
+            if (currentIframe === target) {
+                return;
+            }
+            
+            // 更新活动状态
+            $('.nav ul li a').removeClass('onFoucus');
+            $(this).addClass('onFoucus');
+            
+            // 隐藏当前iframe
+            if (currentIframe) {
+                iframeCache[currentIframe].hide();
+            }
+            
+            // 检查是否已缓存
+            if (!iframeCache[target]) {
+                // 创建新的iframe
+                const newIframe = $('<iframe>', {
+                    id: 'iframe-' + target,
+                    src: href,
+                    title: $(this).text(),
+                    loading: 'eager',
+                    style: 'width: 100%; height: 95vh;',
+                    onload: `$('#loading').text("✔️")`,
+                    allow:"clipboard-read; clipboard-write"                       
+                    
+                });
+                $('#loading').text('加载中...');
+                $('#iframe-container').append(newIframe);
+                iframeCache[target] = newIframe;
+            } else {
+                // 显示已缓存的iframe
+                iframeCache[target].show();
+            }
+            
+            currentIframe = target;
+        });
+    });
+    </script>
+</body>
+</html>
