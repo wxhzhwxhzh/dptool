@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鼠标拖动验证码滑块轨迹采集工具</title>
+  <h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">鼠标拖动验证码滑块轨迹采集工具</h2>
+
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #f7f8fa;
+      --color-border-primary: #1D9E75;
+      --color-border-secondary: #e5e7eb;
+      --color-border-tertiary: #eeeeee;
+      --color-text-primary: #333333;
+      --color-text-secondary: #666666;
+      --color-text-tertiary: #999999;
+      --border-radius-md: 8px;
+      --border-radius-lg: 12px;
+    }
+    body{font-family:var(--font-sans); background: #f9fafb; padding: 20px;}
+    .wrap{padding:1.5rem 0; max-width: 600px; margin: 0 auto;}
+    .card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.5rem;margin-bottom:1rem}
+    .title{font-size:15px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px}
+    .sub{font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem}
+    .captcha-box{position:relative;width:100%;height:60px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden;user-select:none}
+    .track-bg{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,#1D9E75 0%,#1D9E75 var(--prog,0%),transparent var(--prog,0%));opacity:0.18;width:100%;pointer-events:none}
+    .gap-target{position:absolute;right:60px;top:0;width:50px;height:60px;border:2px dashed var(--color-border-secondary);border-radius:4px;display:flex;align-items:center;justify-content:center}
+    .gap-icon{font-size:20px;opacity:0.35}
+    .slider-btn{position:absolute;top:6px;left:6px;width:48px;height:48px;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);display:flex;align-items:center;justify-content:center;cursor:grab;transition:box-shadow 0.1s;z-index:2}
+    .slider-btn.dragging{cursor:grabbing;border-color:var(--color-border-primary);box-shadow:0 0 0 2px #1D9E7540}
+    .arrow-icon{display:flex;gap:2px;align-items:center}
+    .arr{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent}
+    .arr.l{border-right:6px solid var(--color-text-secondary)}
+    .arr.r{border-left:6px solid var(--color-text-secondary)}
+    .hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:13px;color:var(--color-text-tertiary);pointer-events:none;white-space:nowrap}
+    .status-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem}
+    .badge{font-size:12px;padding:4px 10px;border-radius:var(--border-radius-md);border:0.5px solid}
+    .badge.idle{background:var(--color-background-secondary);color:var(--color-text-secondary);border-color:var(--color-border-tertiary)}
+    .badge.dragging{background:#E1F5EE;color:#0F6E56;border-color:#5DCAA5}
+    .badge.success{background:#EAF3DE;color:#3B6D11;border-color:#97C459}
+    .badge.fail{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:1rem}
+    .stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 10px}
+    .stat-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:2px}
+    .stat-val{font-size:16px;font-weight:500;color:var(--color-text-primary);font-variant-numeric:tabular-nums}
+    .canvas-wrap{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden;margin-bottom:1rem}
+    canvas{display:block;width:100%;height:100px}
+    .btn-row{display:flex;gap:8px;flex-wrap:wrap}
+    button{font-size:13px;padding:6px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-primary);cursor:pointer}
+    button:hover{background:var(--color-background-secondary)}
+    button.primary{background:#1D9E75;color:#fff;border-color:#0F6E56}
+    button.primary:hover{background:#0F6E56}
+    .log-box{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 12px;font-family:var(--font-mono);font-size:11px;color:var(--color-text-secondary);height:140px;overflow-y:auto;line-height:1.6}
+    .log-entry{color:var(--color-text-primary)}
+    .log-entry.success{color:#0F6E56}
+    .log-entry.fail{color:#A32D2D}
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="card">
+    <div class="title">滑块验证码轨迹采集器</div>
+    <div class="sub">拖动下方滑块到缺口位置，轨迹数据同步输出到控制台</div>
+
+    <div class="captcha-box" id="captchaBox">
+      <div class="track-bg" id="trackBg"></div>
+      <div class="gap-target" id="gapTarget">
+        <span class="gap-icon">⬜</span>
+      </div>
+      <div class="hint" id="hint">← 拖动滑块到缺口 →</div>
+      <div class="slider-btn" id="sliderBtn">
+        <div class="arrow-icon">
+          <div class="arr l"></div>
+          <div class="arr r"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="status-row">
+      <span class="badge idle" id="statusBadge">● 待操作</span>
+      <span class="badge idle" id="pointsBadge">轨迹点: 0</span>
+      <span class="badge idle" id="timeBadge">用时: --</span>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-label">最大速度</div><div class="stat-val" id="maxSpeed">-- px/s</div></div>
+      <div class="stat"><div class="stat-label">平均速度</div><div class="stat-val" id="avgSpeed">-- px/s</div></div>
+      <div class="stat"><div class="stat-label">加速次数</div><div class="stat-val" id="accCount">--</div></div>
+      <div class="stat"><div class="stat-label">方向回退</div><div class="stat-val" id="backCount">--</div></div>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="speedChart" height="100"></canvas>
+    </div>
+
+    <div class="btn-row" style="margin-bottom:1rem">
+      <button class="primary" id="exportBtn">导出 JSON</button>
+      <button id="resetBtn">重置</button>
+      <button id="consoleBtn">打印到控制台</button>
+    </div>
+
+    <div class="title" style="margin-bottom:6px;font-size:13px">实时日志</div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+</div>
+
+<script>
+const sliderBtn = document.getElementById('sliderBtn');
+const captchaBox = document.getElementById('captchaBox');
+const trackBg = document.getElementById('trackBg');
+const gapTarget = document.getElementById('gapTarget');
+const hint = document.getElementById('hint');
+const statusBadge = document.getElementById('statusBadge');
+const pointsBadge = document.getElementById('pointsBadge');
+const timeBadge = document.getElementById('timeBadge');
+const maxSpeedEl = document.getElementById('maxSpeed');
+const avgSpeedEl = document.getElementById('avgSpeed');
+const accCountEl = document.getElementById('accCount');
+const backCountEl = document.getElementById('backCount');
+const logBox = document.getElementById('logBox');
+const canvas = document.getElementById('speedChart');
+const ctx = canvas.getContext('2d');
+
+let isDragging = false;
+let startX = 0, startY = 0;
+let sliderLeft = 0;
+let startTime = 0;
+let track = [];
+let lastX = 0, lastT = 0;
+let speeds = [];
+let sessionId = Date.now();
+let verified = false;
+let gapLeft = 0;
+
+function initGap() {
+  const boxW = captchaBox.offsetWidth;
+  const btnW = 60;
+  const gapW = 50;
+  gapLeft = boxW - gapW - 20;
+  gapTarget.style.right = 'auto';
+  gapTarget.style.left = (gapLeft) + 'px';
+}
+initGap();
+window.addEventListener('resize', initGap);
+
+function log(msg, type) {
+  const el = document.createElement('div');
+  el.className = 'log-entry' + (type ? ' ' + type : '');
+  const t = new Date().toLocaleTimeString('zh-CN', {hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  el.textContent = `[${t}] ${msg}`;
+  logBox.appendChild(el);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function setStatus(state) {
+  const map = {
+    idle: {cls:'idle', txt:'● 待操作'},
+    dragging: {cls:'dragging', txt:'● 拖动中'},
+    success: {cls:'success', txt:'✓ 验证成功'},
+    fail: {cls:'fail', txt:'✗ 验证失败'}
+  };
+  const s = map[state] || map.idle;
+  statusBadge.className = 'badge ' + s.cls;
+  statusBadge.textContent = s.txt;
+}
+
+function drawSpeedChart() {
+  const w = canvas.offsetWidth * window.devicePixelRatio;
+  const h = canvas.offsetHeight * window.devicePixelRatio;
+  canvas.width = w;
+  canvas.height = h;
+  ctx.clearRect(0,0,w,h);
+  if (speeds.length < 2) return;
+
+  const maxS = Math.max(...speeds, 1);
+  const step = w / (speeds.length - 1);
+
+  ctx.beginPath();
+  ctx.strokeStyle = '#1D9E75';
+  ctx.lineWidth = 1.5 * window.devicePixelRatio;
+  ctx.lineJoin = 'round';
+
+  speeds.forEach((s, i) => {
+    const x = i * step;
+    const y = h - (s / maxS) * (h * 0.85) - h * 0.05;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.strokeStyle = 'transparent';
+  ctx.fillStyle = '#1D9E7520';
+  speeds.forEach((s, i) => {
+    const x = i * step;
+    const y = h - (s / maxS) * (h * 0.85) - h * 0.05;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo(w, h);
+  ctx.lineTo(0, h);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function computeStats() {
+  if (speeds.length === 0) return;
+  const maxS = Math.max(...speeds);
+  const avgS = speeds.reduce((a,b)=>a+b,0)/speeds.length;
+  maxSpeedEl.textContent = Math.round(maxS) + ' px/s';
+  avgSpeedEl.textContent = Math.round(avgS) + ' px/s';
+
+  let acc = 0;
+  for (let i=1;i<speeds.length;i++) if(speeds[i]>speeds[i-1]+10) acc++;
+  accCountEl.textContent = acc;
+
+  let back = 0;
+  for (let i=1;i<track.length;i++) if(track[i].dx<0) back++;
+  backCountEl.textContent = back;
+}
+
+sliderBtn.addEventListener('mousedown', startDrag);
+sliderBtn.addEventListener('touchstart', e => { e.preventDefault(); startDrag(e.touches[0]); }, {passive:false});
+
+function startDrag(e) {
+  if (verified) return;
+  isDragging = true;
+  startX = e.clientX;
+  startY = e.clientY;
+  sliderLeft = parseInt(sliderBtn.style.left) || 6;
+  startTime = Date.now();
+  lastX = e.clientX;
+  lastT = startTime;
+  track = [];
+  speeds = [];
+  sessionId = Date.now();
+  sliderBtn.classList.add('dragging');
+  hint.style.opacity = '0';
+  setStatus('dragging');
+  drawSpeedChart();
+  log(`开始拖动 | sessionId: ${sessionId} | 起点: (${Math.round(e.clientX)}, ${Math.round(e.clientY)})`);
+  console.group(`%c[轨迹采集] 新会话 ${sessionId}`, 'color:#1D9E75;font-weight:bold');
+  console.log('操作开始:', {sessionId, startTime, startX: e.clientX, startY: e.clientY});
+}
+
+document.addEventListener('mousemove', onMove);
+document.addEventListener('touchmove', e => { if(isDragging){ e.preventDefault(); onMove(e.touches[0]); } }, {passive:false});
+
+function onMove(e) {
+  if (!isDragging) return;
+  const now = Date.now();
+  const dt = now - lastT;
+  const rawDx = e.clientX - startX;
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - startY;
+  const speed = dt > 0 ? Math.abs(dx) / dt * 1000 : 0;
+
+  const boxW = captchaBox.offsetWidth;
+  const maxSlide = boxW - 60 - 12;
+  const newLeft = Math.max(6, Math.min(sliderLeft + rawDx, maxSlide));
+  sliderBtn.style.left = newLeft + 'px';
+
+  const prog = ((newLeft - 6) / (maxSlide - 6) * 100).toFixed(1);
+  trackBg.style.setProperty('--prog', prog + '%');
+  pointsBadge.textContent = `轨迹点: ${track.length + 1}`;
+
+  const point = {
+    t: now - startTime,
+    x: Math.round(e.clientX),
+    y: Math.round(e.clientY),
+    sliderX: Math.round(newLeft),
+    dx: Math.round(dx),
+    dy: Math.round(dy),
+    speed: Math.round(speed),
+    dt: dt
+  };
+  track.push(point);
+  speeds.push(speed);
+
+  lastX = e.clientX;
+  lastT = now;
+
+  if (track.length % 5 === 0 || track.length <= 3) {
+    drawSpeedChart();
+  }
+  if (track.length % 10 === 1) {
+    console.log(`  轨迹点 #${track.length}:`, point);
+  }
+}
+
+document.addEventListener('mouseup', endDrag);
+document.addEventListener('touchend', endDrag);
+
+function endDrag(e) {
+  if (!isDragging) return;
+  isDragging = false;
+  sliderBtn.classList.remove('dragging');
+
+  const totalTime = Date.now() - startTime;
+  const sliderPos = parseInt(sliderBtn.style.left) || 6;
+  const tolerance = 30;
+  const isSuccess = Math.abs(sliderPos - gapLeft) < tolerance;
+
+  verified = isSuccess;
+
+  if (isSuccess) {
+    sliderBtn.style.background = '#E1F5EE';
+    sliderBtn.style.borderColor = '#0F6E56';
+    hint.textContent = '✓ 验证通过';
+    hint.style.opacity = '1';
+    hint.style.color = '#0F6E56';
+    setStatus('success');
+    log(`验证成功 ✓ | 总用时: ${totalTime}ms | 轨迹点: ${track.length}`, 'success');
+  } else {
+    setStatus('fail');
+    log(`验证失败 ✗ | 偏差: ${Math.abs(sliderPos - gapLeft).toFixed(0)}px | 轨迹点: ${track.length}`, 'fail');
+    setTimeout(() => {
+      sliderBtn.style.left = '6px';
+      trackBg.style.setProperty('--prog', '0%');
+      verified = false;
+      hint.textContent = '← 拖动滑块到缺口 →';
+      hint.style.opacity = '1';
+      hint.style.color = '';
+      sliderBtn.style.background = '';
+      sliderBtn.style.borderColor = '';
+      setStatus('idle');
+    }, 800);
+  }
+
+  timeBadge.textContent = `用时: ${totalTime}ms`;
+  computeStats();
+  drawSpeedChart();
+
+  const result = {
+    sessionId,
+    success: isSuccess,
+    duration: totalTime,
+    pointCount: track.length,
+    track,
+    stats: {
+      maxSpeed: Math.round(Math.max(...speeds, 0)),
+      avgSpeed: Math.round(speeds.reduce((a,b)=>a+b,0)/(speeds.length||1)),
+      accelerations: parseInt(accCountEl.textContent)||0,
+      backMoves: parseInt(backCountEl.textContent)||0
+    }
+  };
+
+  console.log('操作结束:', {success: isSuccess, duration: totalTime+'ms', pointCount: track.length});
+  console.log('完整轨迹数据:', result);
+  console.groupEnd();
+}
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (track.length === 0) { log('暂无轨迹数据可导出'); return; }
+  const data = JSON.stringify({sessionId, track, stats:{maxSpeed:maxSpeedEl.textContent,avgSpeed:avgSpeedEl.textContent,accCount:accCountEl.textContent,backCount:backCountEl.textContent}}, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `track_${sessionId}.json`;
+  a.click();
+  log(`已导出 track_${sessionId}.json (${track.length} 个轨迹点)`);
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (isDragging) return;
+  sliderBtn.style.left = '6px';
+  sliderBtn.style.background = '';
+  sliderBtn.style.borderColor = '';
+  trackBg.style.setProperty('--prog', '0%');
+  hint.textContent = '← 拖动滑块到缺口 →';
+  hint.style.opacity = '1';
+  hint.style.color = '';
+  track = []; speeds = [];
+  verified = false;
+  setStatus('idle');
+  pointsBadge.textContent = '轨迹点: 0';
+  timeBadge.textContent = '用时: --';
+  maxSpeedEl.textContent = '-- px/s';
+  avgSpeedEl.textContent = '-- px/s';
+  accCountEl.textContent = '--';
+  backCountEl.textContent = '--';
+  drawSpeedChart();
+  log('已重置');
+});
+
+document.getElementById('consoleBtn').addEventListener('click', () => {
+  if (track.length === 0) { log('暂无数据'); return; }
+  console.table(track.slice(0,50));
+  log(`已打印 ${Math.min(track.length,50)} 条轨迹到控制台（console.table）`);
+});
+
+log('采集器就绪，请拖动滑块开始采集');
+</script>
+</body>
+</html>
